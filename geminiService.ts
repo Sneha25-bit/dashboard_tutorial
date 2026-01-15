@@ -2,25 +2,30 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getGeminiClient = () => {
-  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key is missing or process is not defined");
+    throw new Error("API Key is missing. Please ensure process.env.API_KEY is configured.");
   }
   return new GoogleGenAI({ apiKey });
 };
 
 export const getAcademicAnalysis = async (studentData: any) => {
-  const ai = getGeminiClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Analyze this SVNIT student's status and provide a 2-sentence tactical summary of their biggest priority. 
-    Data: ${JSON.stringify(studentData)}`,
-    config: {
-      temperature: 0.7,
-      maxOutputTokens: 150,
-    },
-  });
-  return response.text;
+  try {
+    const ai = getGeminiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Analyze this SVNIT student's status and provide a 2-sentence tactical summary of their biggest priority. 
+      Data: ${JSON.stringify(studentData)}`,
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 150,
+      },
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Analysis Error:", error);
+    return "Unable to generate real-time analysis at this moment. Focus on maintaining subjects above 75%.";
+  }
 };
 
 export const createAcademicChat = () => {
