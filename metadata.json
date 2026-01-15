@@ -1,0 +1,8 @@
+{
+  "name": "Copy of SVNIT Student Dashboard",
+  "description": "A comprehensive academic management and decision-support platform for SVNIT students, featuring attendance tracking, performance analytics, CGPA monitoring, and AI-driven academic advice.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
