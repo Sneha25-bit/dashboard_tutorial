@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { getAttendClassDecision } from '../geminiService';
+import { getAttendClassDecision } from '../geminiService.ts';
 
 const AIDecisionMaker: React.FC = () => {
   const [subject, setSubject] = useState('');

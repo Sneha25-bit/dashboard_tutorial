@@ -1,17 +1,67 @@
 
-import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import DashboardHeader from './components/DashboardHeader';
-import { MOCK_SUBJECTS, MOCK_REMARKS, MOCK_ASSIGNMENTS, MOCK_PERFORMANCE, COLORS } from './constants';
-import AttendancePredictor from './components/AttendancePredictor';
-import AIDecisionMaker from './components/AIDecisionMaker';
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar.tsx';
+import DashboardHeader from './components/DashboardHeader.tsx';
+import { MOCK_SUBJECTS, MOCK_REMARKS, MOCK_ASSIGNMENTS, MOCK_PERFORMANCE, COLORS } from './constants.tsx';
+import AttendancePredictor from './components/AttendancePredictor.tsx';
+import AIDecisionMaker from './components/AIDecisionMaker.tsx';
+import ChatBot from './components/ChatBot.tsx';
+import { getAcademicAnalysis } from './geminiService.ts';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const performAnalysis = async () => {
+    setIsAnalyzing(true);
+    try {
+      const summary = await getAcademicAnalysis({
+        subjects: MOCK_SUBJECTS,
+        cgpa: 8.18,
+        pendingAssignments: MOCK_ASSIGNMENTS.filter(a => a.status === 'pending').length
+      });
+      setAiAnalysis(summary || "Analysis complete. Focus on Mathematics attendance.");
+    } catch (e) {
+      setAiAnalysis("Could not generate AI summary. Check your connectivity.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dashboard' && !aiAnalysis) {
+      performAnalysis();
+    }
+  }, [activeTab]);
 
   const renderDashboard = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* AI Insight Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-3xl shadow-xl shadow-blue-100 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="bg-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md">AI Intelligence</span>
+              <div className="h-1 w-1 rounded-full bg-white animate-pulse"></div>
+            </div>
+            <h2 className="text-white font-bold text-xl mb-1">Semester Pulse Analysis</h2>
+            <p className="text-blue-100 text-sm italic max-w-2xl leading-relaxed">
+              {isAnalyzing ? "Gemini is scanning your performance data..." : aiAnalysis || "Click to analyze progress."}
+            </p>
+          </div>
+          <button 
+            onClick={performAnalysis}
+            disabled={isAnalyzing}
+            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-2xl text-sm font-bold backdrop-blur-xl transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isAnalyzing ? "Analyzing..." : "Refresh Summary"}
+          </button>
+        </div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
@@ -36,9 +86,7 @@ const App: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-8">
-          {/* CGPA Trend */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <h3 className="text-lg font-bold text-slate-800 mb-6">Academic Trajectory</h3>
             <div className="h-64">
@@ -62,7 +110,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Attendance Grid */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <h3 className="text-lg font-bold text-slate-800 mb-6">Subject Wise Attendance</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -79,16 +126,9 @@ const App: React.FC = () => {
                       {sub.attendance}%
                     </span>
                   </div>
-                  
                   <div className="w-full bg-slate-200 rounded-full h-2 mb-4">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-1000 ${
-                        sub.attendance >= 80 ? 'bg-emerald-500' : sub.attendance >= 75 ? 'bg-blue-500' : 'bg-rose-500'
-                      }`}
-                      style={{ width: `${sub.attendance}%` }}
-                    ></div>
+                    <div className={`h-2 rounded-full transition-all duration-1000 ${sub.attendance >= 80 ? 'bg-emerald-500' : sub.attendance >= 75 ? 'bg-blue-500' : 'bg-rose-500'}`} style={{ width: `${sub.attendance}%` }}></div>
                   </div>
-
                   <AttendancePredictor currentAttended={sub.attendedClasses} currentTotal={sub.totalClasses} />
                 </div>
               ))}
@@ -96,19 +136,15 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Sidebar Area */}
         <div className="space-y-8">
           <AIDecisionMaker />
-
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Recent Remarks</h3>
             <div className="space-y-4">
               {MOCK_REMARKS.map((remark) => (
                 <div key={remark.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="flex items-center space-x-2 mb-1">
-                    <span className={`w-2 h-2 rounded-full ${
-                      remark.type === 'positive' ? 'bg-emerald-400' : 'bg-amber-400'
-                    }`}></span>
+                    <span className={`w-2 h-2 rounded-full ${remark.type === 'positive' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
                     <p className="text-[10px] font-bold text-slate-400 uppercase">{remark.subject}</p>
                   </div>
                   <p className="text-xs text-slate-600 mb-2 leading-relaxed">"{remark.text}"</p>
@@ -119,17 +155,6 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-100 relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="text-white font-bold text-lg mb-2">Need Help?</h3>
-              <p className="text-blue-100 text-sm mb-4 leading-relaxed">Schedule a consultation with your academic advisor if your SGPA drops below 7.0.</p>
-              <button className="bg-white text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors">
-                Book Office Hours
-              </button>
-            </div>
-            <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           </div>
         </div>
       </div>
@@ -154,7 +179,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -171,9 +195,7 @@ const App: React.FC = () => {
               <tr key={sub.id} className="group hover:bg-slate-50 transition-colors">
                 <td className="py-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold">
-                      {sub.code.substring(0, 2)}
-                    </div>
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold">{sub.code.substring(0, 2)}</div>
                     <div>
                       <p className="text-sm font-semibold text-slate-700">{sub.name}</p>
                       <p className="text-xs text-slate-400">{sub.code}</p>
@@ -184,11 +206,7 @@ const App: React.FC = () => {
                 <td className="py-4 text-sm text-slate-600">{sub.attendedClasses}</td>
                 <td className="py-4 font-bold text-slate-700">{sub.attendance}%</td>
                 <td className="py-4">
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                    sub.attendance >= 75 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                  }`}>
-                    {sub.attendance >= 75 ? 'Safe' : 'Critical'}
-                  </span>
+                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${sub.attendance >= 75 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{sub.attendance >= 75 ? 'Safe' : 'Critical'}</span>
                 </td>
               </tr>
             ))}
@@ -208,10 +226,7 @@ const App: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="code" stroke="#94a3b8" fontSize={12} axisLine={false} tickLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} axisLine={false} tickLine={false} />
-              <Tooltip 
-                cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
+              <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
               <Bar dataKey="marks" radius={[4, 4, 0, 0]}>
                 {MOCK_SUBJECTS.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.marks > entry.classAverage ? COLORS.success : COLORS.danger} />
@@ -222,7 +237,6 @@ const App: React.FC = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
         <h3 className="text-lg font-bold text-slate-800 mb-4">SGPA History</h3>
         <div className="flex-1">
@@ -231,9 +245,7 @@ const App: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="semester" stroke="#94a3b8" fontSize={12} axisLine={false} tickLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} axisLine={false} tickLine={false} domain={[0, 10]} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
               <Line type="monotone" dataKey="sgpa" stroke={COLORS.primary} strokeWidth={4} dot={{ r: 6, fill: COLORS.primary, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -275,7 +287,6 @@ const App: React.FC = () => {
             ))}
           </div>
         </div>
-
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Submission Status</h3>
           <div className="space-y-4">
@@ -303,7 +314,6 @@ const App: React.FC = () => {
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in scale-95 duration-500">
       <h2 className="text-2xl font-bold text-slate-800 mb-2">CGPA Predictor</h2>
       <p className="text-slate-500 mb-8">Calculate target grades for upcoming semesters to reach your desired CGPA.</p>
-      
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Current CGPA</label>
@@ -317,11 +327,7 @@ const App: React.FC = () => {
           <label className="block text-sm font-semibold text-slate-700 mb-2">Target CGPA (at Graduation)</label>
           <input type="number" defaultValue="8.5" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        
-        <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">
-          Calculate Required Average
-        </button>
-
+        <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">Calculate Required Average</button>
         <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100 text-center">
           <p className="text-sm text-blue-600 font-medium mb-1 uppercase tracking-wider">Required SGPA Average</p>
           <p className="text-4xl font-black text-blue-800">8.82</p>
@@ -368,10 +374,8 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
       <main className="flex-1 ml-64 min-w-0">
         <DashboardHeader />
-        
         <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
           <div className="mb-8 flex justify-between items-end">
             <div>
@@ -383,10 +387,10 @@ const App: React.FC = () => {
               <span className="px-3 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">B.Tech 2nd Year</span>
             </div>
           </div>
-
           {renderContent()}
         </div>
       </main>
+      <ChatBot />
     </div>
   );
 };

@@ -2,10 +2,39 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getGeminiClient = () => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing");
+  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+  if (!apiKey) {
+    throw new Error("API Key is missing or process is not defined");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey });
+};
+
+export const getAcademicAnalysis = async (studentData: any) => {
+  const ai = getGeminiClient();
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Analyze this SVNIT student's status and provide a 2-sentence tactical summary of their biggest priority. 
+    Data: ${JSON.stringify(studentData)}`,
+    config: {
+      temperature: 0.7,
+      maxOutputTokens: 150,
+    },
+  });
+  return response.text;
+};
+
+export const createAcademicChat = () => {
+  const ai = getGeminiClient();
+  return ai.chats.create({
+    model: "gemini-3-pro-preview",
+    config: {
+      systemInstruction: `You are the SVNIT Academic Mentor. 
+      You help students navigate their academic journey at Sardar Vallabhbhai National Institute of Technology.
+      Be encouraging, data-driven, and familiar with the SVNIT SOP (75% attendance rule, CGPA importance).
+      If the student asks about specific data, refer to their dashboard values.`,
+      temperature: 0.9,
+    },
+  });
 };
 
 export const getDecisionAdvice = async (context: string) => {
